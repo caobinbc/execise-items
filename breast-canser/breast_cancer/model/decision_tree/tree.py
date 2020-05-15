@@ -1,103 +1,91 @@
-# coding: utf-8
-
 from math import log
-import operator
+from operator import itemgetter
 
-class DecisionTreeModel():
 
-    # 计算给定数据集的香农熵
-    def calcShannonEnt(self, dataSet):
-        numEntries = len(dataSet)
-        labelCounts = {}
-        # 对所有可能分类创建字典
-        for featVec in dataSet:
-            currentLabel = featVec[-1]
-            if currentLabel not in labelCounts.keys():
-                labelCounts[currentLabel] = 0
-            labelCounts[currentLabel] += 1
-        shannonEnt = 0.0
-        for key in labelCounts:
-            prob = float(labelCounts[key])/numEntries
-            shannonEnt -= prob * log(prob, 2)  # 以2为底求对数
-        return shannonEnt
+def filetoDataSet(filename):
+    fr = open(filename,'r')
+    all_lines = fr.readlines()
+    featname = all_lines[0].strip().split(',')[1:-1]
+    print(featname)
+    dataSet = []
+    for line in all_lines[1:]:
+        line = line.strip()
+        lis = line.split(',')[1:]
+        dataSet.append(lis)
+    fr.close()
+    return dataSet,featname
 
-    # 按照给定特征划分数据集
-    def splitDataSet(self, dataSet, axis, value):
-        retDataset = []
-        for featVec in dataSet:
-            if featVec[axis] == value:
-                reduceFeatVec = featVec[:axis]
-                reduceFeatVec.extend(featVec[axis+1:1])
-                retDataset.append(reduceFeatVec)
-        return retDataset
+def calcEnt(dataSet):           #计算香农熵
+    numEntries = len(dataSet)
+    labelCounts = {}
+    for featVec in dataSet:
+        label = featVec[-1]
+        if label not in labelCounts.keys():
+            labelCounts[label] = 0
+        labelCounts[label] += 1
+    Ent = 0.0
+    for key in labelCounts.keys():
+        p_i = float(labelCounts[key]/numEntries)
+        Ent -= p_i * log(p_i,2)
+    return Ent
+def splitDataSet(dataSet, axis, value):   #划分数据集,找出第axis个属性为value的数据
+    returnSet = []
+    for featVec in dataSet:
+        if featVec[axis] == value:
+            retVec = featVec[:axis]
+            retVec.extend(featVec[axis+1:])
+            returnSet.append(retVec)
+    return returnSet
+def chooseBestFeat(dataSet):
+    numFeat = len(dataSet[0])-1
+    Entropy = calcEnt(dataSet)
+    DataSetlen = float(len(dataSet))
+    bestGain = 0.0
+    bestFeat = -1
+    for i in range(numFeat):
+        allvalue = [featVec[i] for featVec in dataSet]
+        specvalue = set(allvalue)
+        nowEntropy = 0.0
+        for v in specvalue:
+            Dv = splitDataSet(dataSet,i,v)
+            p = len(Dv)/DataSetlen
+            nowEntropy += p * calcEnt(Dv)
+        if Entropy - nowEntropy > bestGain:
+            bestGain = Entropy - nowEntropy
+            bestFeat = i
+    return bestFeat
+def Vote(classList):
+    classdic = {}
+    for vote in classList:
+        if vote not in classdic.keys():
+            classdic[vote] = 0
+        classdic[vote] += 1
+    sortedclassDic = sorted(classdic.items(),key=itemgetter(1),reverse=True)
+    return sortedclassDic[0][0]
+def createDecisionTree(dataSet,featnames):
+    featname = featnames[:]              ################
+    classlist = [featvec[-1] for featvec in dataSet]  #此节点的分类情况
+    if classlist.count(classlist[0]) == len(classlist):  #全部属于一类
+        return classlist[0]
+    if len(dataSet[0]) == 1:         #分完了,没有属性了
+        return Vote(classlist)       #少数服从多数
+    # 选择一个最优特征进行划分
+    bestFeat = chooseBestFeat(dataSet)
+    bestFeatname = featname[bestFeat]
+    del(featname[bestFeat])     #防止下标不准
+    DecisionTree = {bestFeatname:{}}
+    # 创建分支,先找出所有属性值,即分支数
+    allvalue = [vec[bestFeat] for vec in dataSet]
+    specvalue = sorted(list(set(allvalue)))  #使有一定顺序
+    for v in specvalue:
+        copyfeatname = featname[:]
+        DecisionTree[bestFeatname][v] = createDecisionTree(splitDataSet(dataSet,bestFeat,v),copyfeatname)
+    return DecisionTree
 
-    def chooseBestFeatureToSplit(self, dataSet):
-        numFeatures = len(dataSet[0]) - 1
-        baseEntropy = self.calcShannonEnt(dataSet)
-        bestInfoGain = 0.0
-        bestFeature = -1
-        for i in range(numFeatures):
-            # 创建唯一的分类标签列表
-            featList = [example[i] for example in dataSet]
-            uniqueVals = set(featList)
-            newEntropy = 0.0
-            for value in uniqueVals: # 计算每种划分方式的信息熵
-                subDataSet = self.splitDataSet(dataSet, i, value)
-                prob = len(subDataSet) / float(len(dataSet))
-                newEntropy += prob * self.calcShannonEnt(subDataSet)
-            infoGain = baseEntropy - newEntropy
-            if (infoGain > bestInfoGain):    # 计算最好的信息增益
-                bestInfoGain = infoGain
-                bestFeature = i
-        return bestFeature
-
-    def majorityCnt(self, classList):
-        classCount = {}
-        for vote in classList:
-            if vote not in classCount.keys(): classCount[vote] = 0
-            classCount[vote] += 1
-        sortedClassCount = sorted(classCount.iteritems(), key=operator.itemgetter(1), reverse=True)
-        return sortedClassCount[0][0]
-
-    def createTree(self, dataSet, labels):
-        classList = [example[-1] for example in dataSet]
-        if classList.count(classList[0]) == len(classList):
-            return classList[0]
-        # 遍历完所有特征时返回出现次数最多的类别
-        if len(dataSet[0]) == 1:
-            return self.majorityCnt(classList)
-        bestFeat = self.chooseBestFeatureToSplit(dataSet)
-        bestFeatLabel = labels[bestFeat]
-        myTree = {bestFeatLabel: {}}
-        # 得到列表中所有的属性值
-        del (labels[bestFeat])
-        featValues = [example[bestFeat] for example in dataSet]
-        uniqueVals = set(featValues)
-        for value in uniqueVals:
-            subLabels = labels[:]
-            myTree[bestFeatLabel][value] = self.createTree(self.splitDataSet(dataSet, bestFeat, value), subLabels)
-        return myTree
-
-    def classify(self, inputTree, featLabels, testVec):
-        firstStr = inputTree.keys()[0]
-        secondDict = inputTree[firstStr]
-        featIndex = featLabels.index(firstStr)
-        key = testVec[featIndex]
-        valueOfFeat = secondDict[key]
-        if isinstance(valueOfFeat, dict):
-            classLabel = self.classify(valueOfFeat, featLabels, testVec)
-        else:
-            classLabel = valueOfFeat
-        return classLabel
-
-    def storeTree(self, inputTree, filename):
-        import pickle
-        fw = open(filename, 'w')
-        pickle.dump(inputTree, fw)
-        fw.close()
-
-    def grabTree(self, filename):
-        import pickle
-        fr = open(filename)
-        return pickle.load(fr)
-
+if __name__ == '__main__':
+    filename = "E:\\execise-items\\breast-canser\\data\\breast-cancer-wisconsin.data"
+    DataSet,featname = filetoDataSet(filename)
+    #print(DataSet)
+    #print(featname)
+    Tree = createDecisionTree(DataSet,featname)
+    print(Tree)
