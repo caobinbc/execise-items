@@ -1,3 +1,4 @@
+import random
 from math import log
 from operator import itemgetter
 
@@ -5,15 +6,19 @@ from operator import itemgetter
 def filetoDataSet(filename):
     fr = open(filename,'r')
     all_lines = fr.readlines()
-    featname = all_lines[0].strip().split(',')[1:-1]
-    print(featname)
+    # featname = all_lines[0].strip().split(',')[1:-1]
+
+    # print(featname)
+    r = random.random
+    random.seed(1)
     dataSet = []
-    for line in all_lines[1:]:
+    for line in all_lines[0:]:
         line = line.strip()
         lis = line.split(',')[1:]
         dataSet.append(lis)
     fr.close()
-    return dataSet,featname
+    random.shuffle(dataSet, random=r)
+    return dataSet
 
 def calcEnt(dataSet):           #计算香农熵
     numEntries = len(dataSet)
@@ -36,6 +41,7 @@ def splitDataSet(dataSet, axis, value):   #划分数据集,找出第axis个属�
             retVec.extend(featVec[axis+1:])
             returnSet.append(retVec)
     return returnSet
+
 def chooseBestFeat(dataSet):
     numFeat = len(dataSet[0])-1
     Entropy = calcEnt(dataSet)
@@ -54,6 +60,7 @@ def chooseBestFeat(dataSet):
             bestGain = Entropy - nowEntropy
             bestFeat = i
     return bestFeat
+
 def Vote(classList):
     classdic = {}
     for vote in classList:
@@ -62,8 +69,9 @@ def Vote(classList):
         classdic[vote] += 1
     sortedclassDic = sorted(classdic.items(),key=itemgetter(1),reverse=True)
     return sortedclassDic[0][0]
+
 def createDecisionTree(dataSet,featnames):
-    featname = featnames[:]              ################
+    featname = featnames[:]
     classlist = [featvec[-1] for featvec in dataSet]  #此节点的分类情况
     if classlist.count(classlist[0]) == len(classlist):  #全部属于一类
         return classlist[0]
@@ -83,6 +91,7 @@ def createDecisionTree(dataSet,featnames):
     return DecisionTree
 
 if __name__ == '__main__':
+
     filename = "E:\\execise-items\\breast-canser\\data\\breast-cancer-wisconsin.data"
     DataSet,featname = filetoDataSet(filename)
     #print(DataSet)

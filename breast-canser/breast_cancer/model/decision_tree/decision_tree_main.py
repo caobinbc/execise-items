@@ -4,6 +4,10 @@ import os
 import sys
 import pickle
 import pandas as pd
+from sklearn import tree as stree
+from sklearn.model_selection import cross_val_score
+
+
 
 sys.path.append('.')
 
@@ -29,25 +33,67 @@ def StoreTree(Tree,filename):
     pickle.dump(Tree,fw)
     fw.close()
 
+# 5折交叉验证
+def cross_val_score_n(dataSet, featnames):
+
+    scores= []
+    # 将数据分为5份
+    dataList = []
+    pice = len(dataSet) // 5
+    for i in range(5):
+        n = pice * i
+        m = n + pice
+        if m >= len(dataSet):
+            dataList.append(dataSet[n:])
+            print('最后的数据截断是：', n)
+        dataList.append(dataSet[n:m])
+
+    # print(pice)
+    # for y in range(5):
+    #     print(len(dataList[y]))
+    for i in range(5):
+        cnt = 0
+        data = []
+        datatest = []
+        for t in range(5):
+            if t == i:
+                datatest = dataList[t]
+            data.extend(dataList[t])
+
+        Tree = createDecisionTree(data, featnames)
+
+        for lis in datatest:
+            judge = classify(Tree, featnames, lis[:-1])
+            shouldbe = lis[-1]
+            if judge == shouldbe:
+                cnt += 1
+            i += 1
+        scores.append(cnt / float(i))
+    return scores
+
 
 if __name__ == '__main__':
 
     filename = "E:\\execise-items\\breast-canser\\data\\breast-cancer-wisconsin.data"
 
+    dataSet = filetoDataSet(filename)
+    featnames = [
+        'Clump Thickness', 'Uniformity of Cell Size', 'Uniformity of Cell Shape', 'Marginal Adhesion',
+        'Single Epithelial Cell Size', 'Bare Nuclei', 'Bland Chromatin', 'Normal Nucleoli', 'Mitoses'
+    ]
 
-    dataSet, featnames = filetoDataSet(filename)
-    Tree = createDecisionTree(dataSet[:620], featnames)
-    storetree = "E:\\execise-items\\breast-canser\\data\\decTree.dect"
-    StoreTree(Tree, storetree)
-    # Tree = ReadTree(storetree)
-    i = 1
-    cnt = 0
-    for lis in dataSet[620:]:
-        judge = classify(Tree, featnames, lis[:-1])
-        shouldbe = lis[-1]
-        if judge == shouldbe:
-            cnt += 1
-        print("Test %d was classified %s, it's class is %s %s" % (
-        i, judge, shouldbe, "=====" if judge == shouldbe else ""))
-        i += 1
-    print("The Tree's Accuracy is %.3f" % (cnt / float(i)))
+    print(featnames)
+    scores = cross_val_score_n(dataSet, featnames)
+    print(scores)
+
+    # clf = stree.DecisionTreeClassifier()
+    #
+    # X = [d[:-1] for d in dataSet]
+    # Y = [d[-1] for d in dataSet]
+    # clf.fit(X, Y)
+    # scores = cross_val_score(clf, X, Y, cv=5)
+    # print(scores)
+
+
+
+
