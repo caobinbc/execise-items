@@ -86,13 +86,28 @@ if __name__ == '__main__':
     scores = cross_val_score_n(dataSet, featnames)
     print(scores)
 
-    # clf = stree.DecisionTreeClassifier()
-    #
+    clf = stree.DecisionTreeClassifier()
+
     # X = [d[:-1] for d in dataSet]
-    # Y = [d[-1] for d in dataSet]
-    # clf.fit(X, Y)
-    # scores = cross_val_score(clf, X, Y, cv=5)
-    # print(scores)
+    X = []
+    for d in dataSet:
+        X_covert = []
+        try:
+            for i in range(len(d)):
+                if d[i] == '?':
+                    X_covert.append('0')
+                    continue
+                X_covert.append(d[i])
+
+            X.append(X_covert)
+        except Exception as e:
+            print(e)
+            break
+    Y = [d[-1] for d in dataSet]
+
+    clf.fit(X, Y)
+    scores = cross_val_score(clf, X, Y, cv=5)
+    print(scores)
 
 
 

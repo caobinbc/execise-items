@@ -18,7 +18,21 @@ def filetoDataSet(filename):
         dataSet.append(lis)
     fr.close()
     random.shuffle(dataSet, random=r)
-    return dataSet
+    X = []
+    for d in dataSet:
+        X_covert = []
+        try:
+            for i in range(len(d)):
+                if d[i] == '?':
+                    X_covert.append('0')
+                    continue
+                X_covert.append(d[i])
+
+            X.append(X_covert)
+        except Exception as e:
+            print(e)
+            break
+    return X
 
 def calcEnt(dataSet):           #计算香农熵
     numEntries = len(dataSet)
